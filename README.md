@@ -1,3 +1,5 @@
+
+
 # momo
 
 A skincare companion with a mascot. momo talks with the user every day by voice, looks at their skin through the camera, and reads the products they show it. It remembers everything, keeps a diary, and watches in the background for products that do not work well together or with the user's skin.
@@ -314,41 +316,3 @@ Also planned, not built: review analysis by AI as a batch job (not on each reque
 | Sense | `momo/server/sense.ts` | Jev scores every feeling in a chat message, at the same time as the chat call. |
 | Qloo | `momo/server/qloo.ts`, `momo/server/explore.ts`, `momo/server/compare.ts` | Qloo client, discovery lists, and brand scores. |
 | Reviews | `momo/shared/reviews.ts`, `momo/server/reviews.ts` | Sample peer reviews, and the masked names the app shows. |
-
-## Switching models
-
-Chat and vision each have one contract that every provider follows: `momo/server/chat/contract.ts` and `momo/server/vision/contract.ts`. To add a provider, implement the interface in that folder, add it to `PROVIDERS` in its `index.ts`, and set `CHAT_PROVIDER` or `VISION_PROVIDER`.
-
-- `openai`: the only chat provider that runs the agent tools today. Set `OPENAI_MODEL` to an exact model ID. `OPENAI_EFFORT` defaults to `low`.
-- `claude`: `claude-opus-5-5` at low effort, with structured output and server-side refusal fallback (`fallbacks: "default"`). One retry at most, 30 s timeout. No agent tools yet.
-- `local`: chat uses keyword rules. Vision uses a rough on-device estimate for skin (redness, shine and uneven tone only, from skin-colored pixels) and asks for the product name on a scan.
-
-If a live chat provider fails, the turn falls back to `local` and the reply is marked `sample`.
-
-Speech runs in the browser. To move to a server speech model, keep `speak()` and `listen()` in `momo/src/lib/speech.ts` and change what is inside them.
-
-## Data and privacy
-
-Everything is in the user's browser: the diary under the localStorage key `momo.memory.v1`, and skin photos in the IndexedDB database `momo`. A skin check photo is sent once to the vision model to be read, and is not stored on the server. Photos are at most 768 px. The Diary download includes the diary but not the photos.
-
-`qloo_taste` sends Qloo only public interests (a brand, a band, a show), the age group and the gender. It never sends names, health facts or skin data.
-
-## Cost
-
-There is no database, no background job, no polling and no retry loop.
-
-- Voice and tap answers: no API call, unless the answer does not match a chip.
-- One typed or unmatched spoken message: one chat call and one Jev call, in parallel.
-- One product question: at most 3 model steps and 6 tool calls. `qloo_taste` makes at most 2 Qloo insights calls, plus one search per new interest. Both are cached for 6 hours.
-- One skin check: one vision call with two images at most.
-- One product scan: one vision call with two images at most.
-- Opening Explore: one Qloo insights call per list (at most 3), cached for 6 hours.
-- Opening a product: one Qloo call for that brand.
-
-## Not tested yet
-
-- Live Claude chat and vision, and live Jev. The agent was tested live with the `openai` chat provider and live Qloo only.
-- Voice and the live camera on a real phone. The browser pane used for testing blocks the microphone and camera, so the flows were tested with uploaded photos and with spoken answers fed in as text.
-- The on-device skin estimate is rough and moves with lighting. It is labeled as an estimate.
-- The catalog in `momo/shared/catalog.ts`, the store lists in `momo/shared/availability.ts` and the reviews in `momo/shared/reviews.ts` are sample data.
-- The A/B result comes from 6 runs for the outdoor-day question and 1 or 2 runs for the others. It shows the effect; it does not measure how often it happens.
