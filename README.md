@@ -30,7 +30,7 @@ This is a hackathon prototype. It runs on your computer for the demo (see [Run](
 | `momo/src` | 5173 | React + Vite + Tailwind + shadcn/ui app. Holds all memory in the browser: localStorage for the diary, IndexedDB for skin photos. Proxies `/api` to the agent server. |
 | `momo/server` | 8787 (`API_PORT`) | Hono agent server. Holds the chat, vision, Jev and Qloo keys. Stores nothing. |
 | `momo/shared` | - | Types, the formula catalog, sample reviews, store lists, product matching and the watcher. Used by both. |
-| `momo/scripts` | - | `agent-ab.mjs`, the agent A/B test. |
+| `momo/scripts` | - | `qloo-proof.mjs` (`npm run proof:qloo`) and `agent-ab.mjs` (`npm run test:agent`), the agent A/B test. |
 
 ## Run
 
@@ -181,23 +181,39 @@ curl -s http://localhost:8787/api/products/shiseido-anessa-milk
 
 ## Agent test (A/B)
 
-`momo/scripts/agent-ab.mjs` proves that Qloo changes the agent's answer. It asks the same question for two test users. Both have the same skin (Sari: combination, medium sensitivity, Jakarta, trip to Tokyo). They differ only in taste.
+This test proves that Qloo changes the agent's answer. It asks the same question for two test users. Both have the same skin (Sari: combination, medium sensitivity, Jakarta, trip to Tokyo). They differ only in taste.
 
-Start the agent server first (`npm run dev` or `npm run dev:api`), then:
+There are two ways to show it in the demo.
+
+### Option 1: in the app (one person at a time)
+
+1. Open http://localhost:5173 with the demo account.
+2. Ask in the chat: "Which sunscreen should I take for a long outdoor day in Tokyo?" momo answers for Sari's current interests.
+3. On Profile (`/profile`), remove the BLACKPINK and Muji fact.
+4. Tell momo: "I love Real Madrid and Nike."
+5. Ask the same question again. The sources popover shows the new Qloo list.
+
+This path is not tested yet. Try it once before the demo.
+
+### Option 2: the script (side by side, for backup)
+
+The script sends the same question for both tastes and prints the answers one after the other. Start the agent server first (`npm run dev` or `npm run dev:api`). Then, from the `momo` folder:
 
 ```bash
-npm run test:agent -- "Which sunscreen should I take for a long outdoor day in Tokyo?"
+npm run proof:qloo
 ```
 
-Or with no question, which uses the same one:
+With no question added, it asks the outdoor-day question. To ask something else:
 
 ```bash
-node scripts/agent-ab.mjs
+npm run proof:qloo -- "Which moisturizer should I get for humid days?"
 ```
 
-To point it at another server, set `MOMO_API` (default `http://localhost:8787`). One run costs 2 chat turns.
+`npm run test:agent` (`momo/scripts/agent-ab.mjs`) runs the same test and also prints the chat provider and the label of each tool step. `npm run proof:qloo` is `momo/scripts/qloo-proof.mjs`. To point either one at another server, set `MOMO_API` (default `http://localhost:8787`). One run costs 2 chat turns.
 
-Output, for each user:
+The script is also proof that the answers are not scripted. During the demo you can change the question, or the interests in the script, and run it again live. A repeat run within 6 hours shows Qloo as `cached`, because the agent server keeps Qloo answers for 6 hours. The first run after that shows `live`.
+
+Output of `npm run test:agent`, for each user:
 
 ```
 === A: fan of BLACKPINK and Muji (7412 ms, chat: openai live)
@@ -211,13 +227,13 @@ reply: ...
 | Question | BLACKPINK + Muji fan | Real Madrid + Nike fan |
 |---|---|---|
 | Qloo top brands | Glossier, Shiseido, Aveeno, Cetaphil | Clean & Clear, Neutrogena, Sun Bum, Bondi Sands |
-| "Which sunscreen should I take for a long outdoor day in Tokyo?" | Shiseido Anessa (5 of 5 runs) | Bondi Sands (3 of 5 runs), Shiseido Anessa (2 of 5) |
+| "Which sunscreen should I take for a long outdoor day in Tokyo?" | Shiseido Anessa (6 of 6 runs) | Bondi Sands (4 of 6 runs), Shiseido Anessa (2 of 6) |
 | "Which moisturizer should I get for humid days?" | Neutrogena Hydro Boost | Hydro Boost in one run, Clean & Clear in the other |
 | "Which sunscreen should I buy in Tokyo?" | Shiseido Anessa | Bioré |
 
 Use the outdoor-day question for the demo. There, Anessa and Bondi Sands fit Sari's skin equally well, so taste decides. For the other questions, skin fit usually wins. That is the design: Qloo shows taste, not whether a product works.
 
-The outdoor-day question does not give the taste pick every time. In 2 of 5 runs the second user also got Anessa, because both products are equal on skin fit and the model sometimes stays with the stronger festival review. In those runs momo did not say "people who share your taste love it", so it made no false taste claim. For the demo, run the test once before you present, or show the `qloo top` line, which changes every time.
+The outdoor-day question does not give the taste pick every time. In 2 of 6 runs the second user also got Anessa, because both products are equal on skin fit and the model sometimes stays with the stronger festival review. In those runs momo did not say "people who share your taste love it", so it made no false taste claim. For the demo, run the test once before you present, or show the `qloo top` line, which changes every time.
 
 The moisturizer question once picked Clean & Clear for the second user, a 3-star product, over a 5-star one. One run is not enough to tell if this happens often, so do not use that question in the demo.
 
@@ -335,4 +351,4 @@ There is no database, no background job, no polling and no retry loop.
 - Voice and the live camera on a real phone. The browser pane used for testing blocks the microphone and camera, so the flows were tested with uploaded photos and with spoken answers fed in as text.
 - The on-device skin estimate is rough and moves with lighting. It is labeled as an estimate.
 - The catalog in `momo/shared/catalog.ts`, the store lists in `momo/shared/availability.ts` and the reviews in `momo/shared/reviews.ts` are sample data.
-- The A/B result comes from 5 runs for the outdoor-day question and 1 or 2 runs for the others. It shows the effect; it does not measure how often it happens.
+- The A/B result comes from 6 runs for the outdoor-day question and 1 or 2 runs for the others. It shows the effect; it does not measure how often it happens.
