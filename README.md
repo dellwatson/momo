@@ -20,6 +20,7 @@ This is a hackathon prototype. It runs on your computer for the demo (see [Run](
 - [Reviews: goal and rules](#reviews-goal-and-rules)
 - [Screens](#screens)
 - [How it works](#how-it-works)
+- [YouCam skin check](#youcam-skin-check)
 - [Switching models](#switching-models)
 - [Data and privacy](#data-and-privacy)
 - [Cost](#cost)
@@ -30,9 +31,9 @@ This is a hackathon prototype. It runs on your computer for the demo (see [Run](
 | Folder | Port | Role |
 |---|---|---|
 | `momo/src` | 5173 | React + Vite + Tailwind + shadcn/ui app. Holds all memory in the browser: localStorage for the diary, IndexedDB for skin photos. Proxies `/api` to the agent server. |
-| `momo/server` | 8787 (`API_PORT`) | Hono agent server. Holds the chat, vision, Jev and Qloo keys. Stores nothing. |
+| `momo/server` | 8787 (`API_PORT`) | Hono agent server. Holds the chat, vision, Jev, Qloo and YouCam keys. Stores nothing. |
 | `momo/shared` | - | Types, the formula catalog, sample reviews, store lists, product matching and the watcher. Used by both. |
-| `momo/scripts` | - | `qloo-proof.mjs` (`npm run proof:qloo`) and `agent-ab.mjs` (`npm run test:agent`), the agent A/B test. |
+| `momo/scripts` | - | `qloo-proof.mjs` (`npm run proof:qloo`) and `agent-ab.mjs` (`npm run test:agent`), the agent A/B test. `youcam-skin-test.mjs` (`npm run test:youcam`), the YouCam skin analysis test. |
 
 ## Run
 
@@ -290,7 +291,7 @@ Also planned, not built: review analysis by AI as a batch job (not on each reque
 |---|---|
 | Home (`/`) | Greeting and what momo noticed: this week's good days, the last skin check, what it is watching, what is working. Three actions: talk, skin check, scan a product. Shows at most 3 lines of momo's reply, plus "Read all in chat". |
 | Talk (sheet) | The voice check-in. momo says each question out loud and listens for the answer, hands-free, until the user goes quiet. Tap answers and a text box stay on screen. |
-| Skin check (sheet) | Selfie with a face guide and a 3-second count. Shows today next to the last check, what momo sees, and what changed. |
+| Skin check (sheet) | Selfie with a face guide and a 3-second count. Shows today next to the last check, what momo sees, and what changed. With a YouCam key, the scores are measured by YouCam, and the sheet shows the units left. See [YouCam skin check](#youcam-skin-check). |
 | Scan (sheet) | The front of a product, and the back label if the user likes. momo names it, says what it does, and says whether it works with the rest of the shelf. |
 | Skin (`/skin`) | Every skin check, newest first, with the change from the one before. |
 | Shelf (`/shelf`) | Products the user owns, when they use them, how each one felt, and the watcher's notes. |
@@ -307,7 +308,7 @@ Also planned, not built: review analysis by AI as a batch job (not on each reque
 |---|---|---|
 | Check-in | `momo/src/lib/checkin.ts` | Computes the next question from memory, so each thing is asked once. A new day asks: how the skin feels, a skin check, what it feels like, what was used, anything new. |
 | Voice | `momo/src/lib/speech.ts`, `momo/src/state/voice.ts`, `momo/src/lib/voice-match.ts` | The browser's own speech engines, so voice costs no API call. Spoken answers are matched to the check-in chips on the device ("not so good" picks "Not great"). Anything else goes to the chat model. |
-| Vision | `POST /api/look`, `POST /api/scan`, `momo/server/vision/` | One vision call per skin check (today's photo and the last one) and one per product scan (front, and back label if given). |
+| Vision | `POST /api/look`, `POST /api/scan`, `momo/server/vision/` | One vision call per skin check (today's photo and the last one) and one per product scan (front, and back label if given). A skin check also runs one YouCam analysis at the same time (`momo/server/vision/youcam.ts`). |
 | Memory | `momo/src/lib/memory.ts`, `momo/src/state/momo.ts`, `momo/src/lib/photos.ts` | Profile, compiled facts, shelf, diary, skin checks, chat, reviews, points. `buildContext()` turns it into one `ContextPack` that every model receives. |
 | Watcher | `momo/shared/watch.ts` | Rules on formulas, skin profile and diary. A scanned product is checked on a copy of the shelf before the user adds it. |
 | Home greeting | `momo/src/lib/brief.ts` | Computed on the device from memory. No API call. |
@@ -316,3 +317,105 @@ Also planned, not built: review analysis by AI as a batch job (not on each reque
 | Sense | `momo/server/sense.ts` | Jev scores every feeling in a chat message, at the same time as the chat call. |
 | Qloo | `momo/server/qloo.ts`, `momo/server/explore.ts`, `momo/server/compare.ts` | Qloo client, discovery lists, and brand scores. |
 | Reviews | `momo/shared/reviews.ts`, `momo/server/reviews.ts` | Sample peer reviews, and the masked names the app shows. |
+
+## YouCam skin check
+
+The skin check gets measured scores from the YouCam AI Skin Analysis API (Perfect Corp). Docs: https://docs.perfectcorp.com/reference/ai_skin_analysis
+
+### Folders and files
+
+| Folder and file | Role |
+|---|---|
+| `momo/server/vision/youcam.ts` | The YouCam client. Uploads the photo, starts the task, polls it, reads the units left. Holds `YOUCAM_API_KEY`. |
+| `momo/server/vision/index.ts` | `look()` runs YouCam and the vision model at the same time, then merges the results. |
+| `momo/src/components/camera.tsx`, `momo/src/lib/image.ts` | The live camera preview and the face crop (`faceToJpeg`). |
+| `momo/src/components/skin-check.tsx` | Shows the scores, the retake messages, and the demo quota line. |
+| `momo/scripts/youcam-skin-test.mjs` | Command-line test: `npm run test:youcam`. |
+| `momo/demo/youcam-quota.md` | The units log for the demo. Written by the test script. |
+
+### Set up
+
+1. Get an API key at https://yce.makeupar.com/api-console/en/api-keys/ (API Key tab).
+2. Put it in `momo/.env` as `YOUCAM_API_KEY=...`. The key stays in the server. The app never receives it.
+3. Start the server. The start line in the `momo/server` log shows `youcam: live`. Without a key it shows `youcam: off`, and the skin check works as before.
+
+### What happens in one skin check
+
+1. The camera shows a live preview. YouCam does not read live frames. Each analysis takes about 3 to 15 s and costs units, so momo sends one frame when the user takes the photo.
+2. The camera crops a 3:4 portrait around the face oval, so the face is about 70% of the image width. A small crop is scaled up so that the short side is at least 480 px.
+3. The app sends the photo once to `POST /api/look` on the `momo/server` API (port 8787).
+4. `momo/server/vision/youcam.ts` makes these calls to `https://yce-api-01.makeupar.com`:
+   - `POST /s2s/v2.0/file`: get an upload URL.
+   - `PUT` the photo to that URL.
+   - `POST /s2s/v2.1/task/skin-analysis`: start the task with 4 SD concerns, `format: json`.
+   - `GET /s2s/v2.1/task/skin-analysis/{task_id}`: poll. The first poll is after 1 s, then the interval grows by 1.5 times to a maximum of 3 s. The server stops after 45 s.
+   - `GET /s2s/v1.0/client/credit`: read the units left, after a successful task only.
+5. At the same time, the vision model (or the on-device estimate) writes momo's spoken summary and scores unevenness.
+
+YouCam sends a `ui_score` from 1 to 100 for each concern. A higher score is healthier skin. momo turns each score into a sign with `1 - ui_score / 100`:
+
+| YouCam concern | momo sign |
+|---|---|
+| `redness` | Redness |
+| `oiliness` | Shine |
+| `acne` | Breakouts |
+| `moisture` | Dry patches |
+| (none) | Uneven tone, from the vision model |
+
+### Photo rules and retakes
+
+YouCam needs a whole face, not a part of the skin. A photo of only a cheek or the forehead gives `error_no_face`. The rules:
+
+- jpg or png, under 10 MB, short side 480 px or more (SD).
+- The face is wider than 60% of the image, and the whole face is in the frame.
+- Front-facing, eyes open, good light.
+
+When YouCam cannot read the photo, momo asks for a retake. A failed task costs no units.
+
+| YouCam error | momo says |
+|---|---|
+| `error_src_face_too_small`, `error_below_min_image_size` | Come a little closer. |
+| `error_src_face_out_of_bound` | Move back a little. |
+| `error_lighting_dark` | Face a window. |
+| `error_no_face`, `error_pose`, `error_large_face_angle`, `error_multiple_people` | Fit your face inside the oval. |
+
+### Units (demo quota)
+
+In momo, the YouCam units will come from the subscription. For the demo, the skin check sheet shows the units after each check: "Measured by YouCam · 9 units · N left (demo quota)".
+
+| Check | Units |
+|---|---|
+| SD, 1 to 4 concerns (what momo uses) | 9 |
+| SD, 5 to 8 concerns | 12 |
+| HD, 1 to 4 concerns | 12 |
+| HD, 5 to 8 concerns | 16 |
+
+Units are charged only when the task succeeds. Measured on 2026-11-01: 1040 units before the first check, 1031 after, 5.4 s for one check.
+
+### Test from the command line
+
+```bash
+npm run test:youcam -- quota
+```
+
+Reads the units left. Costs 0 units. Adds one line to `momo/demo/youcam-quota.md`.
+
+```bash
+npm run test:youcam -- ./selfie.jpg
+```
+
+Runs one SD analysis (9 units) on a photo. Add `--hd` for HD (12 units, short side 1080 px or more). The full answer goes to `momo/demo/youcam-last-result.json`.
+
+### Test in the app
+
+The built-in browser pane of the Claude desktop app blocks the camera. Use Chrome:
+
+1. Start the API on 8787 and the web app on 5173 (`npm run dev`).
+2. Open http://localhost:5173, tap the camera button, then **Skin check**.
+3. Read the result in the `momo/server` log: `[youcam] <task_id> ok in ... ms, 9 units, N left, scores ...` or `[youcam] failed in ... ms: <error>`.
+
+### Known limits
+
+- The 4 SD concerns give one score for the whole face. Scores per area (forehead, nose, cheek) and the mask images come only with HD concerns. momo does not use them yet.
+- Without a vision key, momo's spoken summary comes from the on-device estimate, not from the YouCam scores.
+- The face crop takes the centre of the frame. A face outside the oval gives a retake.

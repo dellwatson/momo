@@ -368,7 +368,7 @@ export const SIGN_LABELS: Record<Sign, string> = {
   unevenness: 'Uneven tone',
 }
 
-export const SHOT_ISSUES = ['ok', 'too_dark', 'blurry', 'no_face', 'too_far'] as const
+export const SHOT_ISSUES = ['ok', 'too_dark', 'blurry', 'no_face', 'too_far', 'too_close'] as const
 export type ShotIssue = (typeof SHOT_ISSUES)[number]
 
 export interface LookRequest {
@@ -392,6 +392,19 @@ export interface LookResult {
   mood: Mood
   evidence: Evidence[]
   meta: Meta
+  /** Measured scores from YouCam AI Skin Analysis, when YOUCAM_API_KEY is set. */
+  measure?: Measure
+}
+
+export interface Measure {
+  tool: 'youcam'
+  status: Status
+  ms: number
+  /** ui_score per concern, 1 to 100, higher is healthier skin. */
+  scores: { type: string; score: number; raw?: number }[]
+  /** API units for this check and the balance after it. In momo these come from the subscription. */
+  units: { used: number; left?: number }
+  note?: string
 }
 
 export interface ScanRequest {

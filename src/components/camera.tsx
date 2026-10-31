@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera as CameraIcon, ImageUp, SwitchCamera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { fileToJpeg, toJpeg } from '@/lib/image'
+import { faceToJpeg, fileToJpeg, toJpeg } from '@/lib/image'
 import { cn } from '@/lib/utils'
 
 // A live camera view with a guide shape. The video never leaves the device:
@@ -30,6 +30,7 @@ export function Camera({
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const file = useRef<HTMLInputElement>(null)
+  const oval = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState(facing)
   const [error, setError] = useState<string>()
   const [ready, setReady] = useState(false)
@@ -64,6 +65,12 @@ export function Camera({
   const grab = () => {
     const v = video.current
     if (!v || !v.videoWidth) return
+    if (guide === 'face' && oval.current) {
+      // Crop to the oval, so the face fills the photo (YouCam needs this).
+      const view = v.getBoundingClientRect()
+      onShot(faceToJpeg(v, { w: view.width, h: view.height }, oval.current.getBoundingClientRect().width / view.width, mode === 'user'))
+      return
+    }
     onShot(toJpeg(v, v.videoWidth, v.videoHeight, mode === 'user'))
   }
 
@@ -95,6 +102,7 @@ export function Camera({
         {!error && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
+              ref={oval}
               className={cn(
                 'border-2 border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]',
                 guide === 'face' ? 'h-[62%] w-[52%] rounded-[50%] sm:w-[36%]' : 'h-[58%] w-[46%] rounded-2xl sm:w-[30%]',

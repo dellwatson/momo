@@ -14,7 +14,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "proof:qloo": "node scripts/qloo-proof.mjs",
-    "test:agent": "node scripts/agent-ab.mjs"
+    "test:agent": "node scripts/agent-ab.mjs",
+    "test:youcam": "node scripts/youcam-skin-test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

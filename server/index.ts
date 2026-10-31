@@ -13,6 +13,7 @@ import { qlooKey } from './qloo.ts'
 import { sense } from './sense.ts'
 import { parseImage } from './vision/contract.ts'
 import { look, scan, visionProvider } from './vision/index.ts'
+import { youcamKey } from './vision/youcam.ts'
 
 const PORT = Number(process.env.API_PORT ?? 8787)
 const MAX_MESSAGE = 500
@@ -102,6 +103,6 @@ app.post('/explore', async (c) => {
 serve({ fetch: app.fetch, port: PORT }, () => {
   const p = chatProvider()
   console.log(
-    `momo agent server on http://localhost:${PORT}  (chat: ${p.name}${p.model ? ` ${p.model}` : ''}, vision: ${visionProvider().name}, jev: ${jevKey() ? 'live' : 'sample'}, qloo: ${qlooKey() ? 'live' : 'sample'})`,
+    `momo agent server on http://localhost:${PORT}  (chat: ${p.name}${p.model ? ` ${p.model}` : ''}, vision: ${visionProvider().name}, jev: ${jevKey() ? 'live' : 'sample'}, qloo: ${qlooKey() ? 'live' : 'sample'}, youcam: ${youcamKey() ? 'live' : 'off'})`,
   )
 })

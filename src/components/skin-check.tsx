@@ -19,6 +19,7 @@ const RETAKE: Record<string, string> = {
   blurry: 'That one is blurry. Hold still for the count.',
   no_face: "I can't see your face. Fit it inside the oval.",
   too_far: 'Come a little closer, so your face fills the oval.',
+  too_close: 'Move back a little, so your whole face fits inside the oval.',
 }
 
 const fmt = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -49,7 +50,9 @@ export function SkinCheckSheet() {
 
   const r = check?.result
   const live = r?.meta.status === 'live'
-  const only: Sign[] = live ? [...SIGNS] : ESTIMATED
+  // YouCam measures redness, shine, breakouts and dryness even without a vision key.
+  const measured = r?.measure?.status === 'live'
+  const only: Sign[] = live ? [...SIGNS] : measured ? SIGNS.filter((s) => s !== 'unevenness' || ESTIMATED.includes(s)) : ESTIMATED
 
   return (
     <FullSheet title="Skin check" onClose={closeSheet}>
@@ -106,6 +109,13 @@ export function SkinCheckSheet() {
                 <p className="mb-3 text-sm font-medium">What momo sees{check.previous ? ', compared with last time' : ''}</p>
                 <SignMeters signs={r.signs} previous={check.previous?.signs} only={only} />
                 {!live && <p className="mt-3 text-xs text-muted-foreground">Rough on-device estimate. Add a vision key in /Users/Shared/momo/.env for a real read.</p>}
+                {r.measure && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {r.measure.status === 'live'
+                      ? `Measured by YouCam · ${r.measure.units.used} units · ${r.measure.units.left ?? '?'} left (demo quota)`
+                      : `YouCam could not measure (${r.measure.note}). No units used.`}
+                  </p>
+                )}
               </div>
               <Button size="lg" className="h-12 w-full rounded-full text-base" onClick={closeSheet}>
                 {fromTalk ? 'Back to momo' : 'Done'}
