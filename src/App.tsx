@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
+import { PitchVideo } from '@/components/pitch-video'
 import { Sheets } from '@/components/sheets'
 import { SiteHeader, TabBar } from '@/components/site-header'
 import { Toaster } from '@/components/ui/sonner'
@@ -30,6 +31,7 @@ function Layout() {
       {/* On Home, momo says what it is watching out loud. */}
       {pathname !== '/' && pathname !== '/chat' && <WatchDock />}
       <Sheets />
+      <PitchVideo />
       {pathname !== '/chat' && pathname !== '/' && (
         <footer className="mx-auto max-w-6xl px-4 pb-24 pt-2 text-xs text-muted-foreground md:py-10">
           momo · a skincare companion, not medical advice · your data stays in this browser
